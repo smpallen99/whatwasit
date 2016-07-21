@@ -1,7 +1,34 @@
 defmodule Mix.Tasks.Whatwasit.Install do
   @moduledoc """
+  Setup the Whatwasit package for your Phoenix application.
 
+  Adds a migration for the Version model used to trackage changes to
+  the desired models.
 
+  Prints example configuration that should be added to your
+  config/config.exs file.
+
+  ## Examples
+
+      # create the migration and print configuration
+      mix whatwasit.install
+
+      # print configuration
+      mix whatwasit.install --no-migrations
+
+      # use a different user model
+      mix whatwasit.install --model="Account accounts"
+
+  The following options are available:
+
+  * `--model` -- The authentication model and table_name
+  * `--repo` -- The project's repo if different than the standard default
+  * `--module` -- The projects base module
+  * `--migration-path` -- The migration path
+
+  The following options are available to disable features:
+
+  * `--no-migrations` -- Don't generate the migration
   """
 
   @shortdoc "Configure the Whatwasit Package"
@@ -24,7 +51,6 @@ defmodule Mix.Tasks.Whatwasit.Install do
 
   def run(args) do
     {opts, parsed, unknown} = OptionParser.parse(args, switches: @switches)
-    IO.puts "opts: #{inspect opts}, parsed: #{inspect parsed}"
 
     verify_args!(parsed, unknown)
 
@@ -35,16 +61,13 @@ defmodule Mix.Tasks.Whatwasit.Install do
   end
 
   def do_run(config) do
-    IO.puts "config: #{inspect config}"
     config
     |> gen_migration
+    |> print_instructions
   end
 
   defp gen_migration(%{migrations: true, boilerplate: true} = config) do
-    # name = config[:user_schema]
-    # |> module_to_string
-    # |> String.downcase
-    # {verb, migration_name, initial_fields, constraints} = create_or_alter_model(config, name)
+    {_, table_name} = config[:user_schema]
     do_gen_migration config, "create_whatwasit_version", fn repo, _path, file, name ->
 
       change = """
@@ -54,7 +77,7 @@ defmodule Mix.Tasks.Whatwasit.Install do
             add :action, :string
             add :object, :map, null: false
             add :whodoneit_name, :string
-            add :whodoneit_id, references(:users, on_delete: :nilify_all)
+            add :whodoneit_id, references(:#{table_name}, on_delete: :nilify_all)
 
             timestamps
           end
@@ -80,7 +103,18 @@ defmodule Mix.Tasks.Whatwasit.Install do
     file = Path.join(path, "#{timestamp}_#{underscore(name)}.exs")
     fun.(repo, path, file, name)
     config
-    #Map.put(config, :timestamp, timestamp + 1)
+  end
+
+  defp print_instructions(config) do
+    Mix.shell.info """
+    Add the following to your config/config.exs:
+
+      config :whatwasit,
+        repo: #{config[:repo]},
+        user_schema: #{config[:user_schema] |> elem(0)}
+
+    """
+    config
   end
 
   defp timestamp do
@@ -100,12 +134,7 @@ defmodule Mix.Tasks.Whatwasit.Install do
   #############
   # Config
 
-  # defp do_config(opts, []) do
-  #   IO.puts "do_config defaults"
-  #   do_config(opts, list_to_atoms(@default_options))
-  # end
   defp do_config(opts, bin_opts) do
-    IO.puts "do_config bin_opts: #{inspect bin_opts}"
     binding = Mix.Project.config
     |> Keyword.fetch!(:app)
     |> Atom.to_string
@@ -164,13 +193,19 @@ defmodule Mix.Tasks.Whatwasit.Install do
   defp list_to_atoms(list), do: Enum.map(list, &(String.to_atom(&1)))
 
   defp parse_model(model, _base, opts) when is_binary(model) do
-    prefix_model model, opts
+    case String.split(model, " ", trim: true) do
+      [model, table] ->
+        {prefix_model(model, opts), String.to_atom(table)}
+      [_] ->
+        Mix.raise """
+        The mix whatwasit.install --model option expects both singular and plural names. For example:
+
+            mix whatwasit.install --model="Account accounts"
+        """
+    end
   end
   defp parse_model(_, base, _) do
     {"#{base}.User", :users}
-  end
-  defp paths do
-    [".", :whatwasit]
   end
 
   defp prefix_model(model, opts) do
@@ -180,12 +215,6 @@ defmodule Mix.Tasks.Whatwasit.Install do
     else
       module <> "." <>  model
     end
-  end
-
-  defp raise_option(option) do
-    Mix.raise """
-    Invalid option --#{option}
-    """
   end
 
 end

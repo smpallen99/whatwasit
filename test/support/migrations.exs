@@ -8,9 +8,7 @@ defmodule TestWhatwasit.Migrations do
 
       timestamps
     end
-  end
 
-  def change do
     create table(:versions) do
       add :item_type, :string, null: false
       add :item_id, :integer, null: false
