@@ -1,9 +1,11 @@
 defmodule Whatwasit.Mixfile do
   use Mix.Project
 
+  @version "0.1.0"
+
   def project do
     [app: :whatwasit,
-     version: "0.0.1",
+     version: @version,
      elixir: "~> 1.2",
      elixirc_paths: elixirc_paths(Mix.env),
      build_embedded: Mix.env == :prod,
@@ -11,9 +13,6 @@ defmodule Whatwasit.Mixfile do
      deps: deps]
   end
 
-  # Configuration for the OTP application
-  #
-  # Type "mix help compile.app" for more information
   def application do
     [applications: applications(Mix.env)]
   end
