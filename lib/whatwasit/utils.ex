@@ -1,4 +1,5 @@
 defmodule Whatwasit.Utils do
+  @moduledoc false
 
   def cast(%{} = schema, params) do
     struct schema, map_to_atom_keys(params)

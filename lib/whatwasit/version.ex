@@ -1,5 +1,8 @@
 defmodule Whatwasit.Version do
+  @moduledoc """
+  Version schema for tracking model versions.
 
+  """
   use Ecto.Schema
   import Ecto
   import Ecto.Changeset
@@ -15,6 +18,9 @@ defmodule Whatwasit.Version do
     timestamps
   end
 
+  @doc """
+  Create a changeset for the version record
+  """
   def changeset(model, params \\ %{}) do
     params = update_in params, [:object], &(Map.delete(&1, :__meta__) |> Map.delete(:__struct__))
     model
