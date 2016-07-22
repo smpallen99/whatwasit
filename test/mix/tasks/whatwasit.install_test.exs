@@ -138,6 +138,28 @@ defmodule Mix.Tasks.Whatwasit.InstallTest do
         assert Path.wildcard("migrations/*_create_whatwasit_version.exs") == []
       end
     end
+
+    test "whodoneit-map" do
+      in_tmp "whodoneit_map", fn ->
+        Mix.Tasks.Whatwasit.Install.run ["--whodoneit-map", "--migration-path=migrations", "--module=TestWhatwasit"]
+
+        assert [migration] = Path.wildcard("migrations/*_create_whatwasit_version.exs")
+
+        assert_file migration, fn file ->
+          assert_migration_base file
+          refute file =~ "add :whodoneit_name, :string"
+          assert file =~ "add :whodoneit, :map"
+          assert file =~ "timestamps"
+        end
+
+        assert_file @model_path, fn file ->
+          assert_schema_base file
+          refute file =~ "field :whodoneit_name, :string"
+          assert file =~ "field :whodoneit, :map"
+          assert file =~ "|> cast(params, ~w(item_type item_id object action whodoneit)a)"
+        end
+      end
+    end
   end
 
 end

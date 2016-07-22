@@ -25,6 +25,9 @@ defmodule Mix.Tasks.Whatwasit.Install do
       # use a simple whodoneit_id field
       mix whatwasit.install --whodoneit-id=integer
 
+      # store the whodoneit model in a map
+      mix whatwasit.install --whodoneit-map
+
   The following options are available:
 
   * `--model` -- The authentication model and table_name
@@ -33,6 +36,7 @@ defmodule Mix.Tasks.Whatwasit.Install do
   * `--migration-path` -- The migration path
   * `--whodoneit` -- Add current user tracking
   * `--whodoneit-id` -- Use a simple id field instead of a relationship
+  * `--whodoneit-map` -- Store the current_user as a map
 
   The following options are available to disable features:
 
@@ -55,7 +59,7 @@ defmodule Mix.Tasks.Whatwasit.Install do
   # all boolean_options
   @boolean_options   @default_booleans
 
-  @switches [repo: :string, migration_path: :string, model: :string, module: :string, whodoneit: :boolean, whodoneit_id: :string] ++ Enum.map(@boolean_options, &({String.to_atom(&1), :boolean}))
+  @switches [repo: :string, migration_path: :string, model: :string, module: :string, whodoneit: :boolean, whodoneit_id: :string, whodoneit_map: :boolean] ++ Enum.map(@boolean_options, &({String.to_atom(&1), :boolean}))
   @switch_names Enum.map(@switches, &(elem(&1, 0)))
 
 
@@ -75,6 +79,20 @@ defmodule Mix.Tasks.Whatwasit.Install do
     |> gen_migration
     |> gen_version_model
     |> print_instructions
+  end
+
+  defp gen_version_model(%{models: true, whodoneit_map: true, boilerplate: true, binding: binding} = config) do
+    changeset_fields = "~w(item_type item_id object action whodoneit)a"
+    schema_fields = "field :whodoneit, :map\n"
+    binding = binding ++ [
+      schema_fields: schema_fields,
+      changeset_fields: changeset_fields
+    ]
+    Mix.Phoenix.copy_from paths(),
+      "priv/templates/whatwasit.install/models/whatwasit", "", binding, [
+        {:eex, "version_map.ex", "web/models/whatwasit/version.ex"},
+      ]
+    config
   end
 
   defp gen_version_model(%{models: true, boilerplate: true, binding: binding} = config) do
@@ -108,6 +126,10 @@ defmodule Mix.Tasks.Whatwasit.Install do
   defp gen_migration(%{migrations: true, boilerplate: true} = config) do
     {_, table_name} = config[:user_schema]
     whodoneit = cond do
+      config[:whodoneit_map] ->
+        """
+              add :whodoneit, :map
+        """
       config[:whodoneit_id] ->
         """
               add :whodoneit_name, :string
@@ -264,6 +286,8 @@ defmodule Mix.Tasks.Whatwasit.Install do
 
     user_schema = parse_model(opts[:model], base, opts)
 
+    whodoneit = if opts[:whodoneit_map] || opts[:whodoneit_id], do: true, else: opts[:whodoneit]
+
     bin_opts
     |> Enum.map(&({&1, true}))
     |> Enum.into(%{})
@@ -273,8 +297,9 @@ defmodule Mix.Tasks.Whatwasit.Install do
     |> Map.put(:binding, binding)
     |> Map.put(:migration_path, opts[:migration_path])
     |> Map.put(:module, opts[:module])
-    |> Map.put(:whodoneit, opts[:whodoneit])
+    |> Map.put(:whodoneit, whodoneit)
     |> Map.put(:whodoneit_id, opts[:whodoneit_id])
+    |> Map.put(:whodoneit_map, opts[:whodoneit_map])
     |> do_default_config(opts)
   end
 

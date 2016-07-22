@@ -210,6 +210,59 @@ The name is tracked to handle the case of deleting a user who has made modificat
 
 The default is to use the `:name` field on the user. This can be changed by setting the `:name_field` in the configuration, or passing the `name_field: :field_name` option to `use Whatwasit.Schema`
 
+## Store the whodoneit in the Database
+
+The above example saves a reference to the current user in the database. You may instead want to store user data in the database. This would allow you to save user details at the time like current IP.
+
+Use the `--whodoneit-map` option to enable this:
+
+```bash
+    mix whatwasit.install --whodoneit-map
+```
+
+This option replaces the `whodoneit_id` and `whodoneit_name` fields in the Version schema with `:whodoneit :map`.
+
+For this option, your models will be the same. However, you will need to make changes in your controller like this:
+
+```elixir
+    defmodule MyProject.PostController do
+      use MyProject.Web, :controller
+      # ...
+
+      def update(conn, %{"id" => id, "post" => post_params}) do
+        post = Repo.get!(Post, id)
+        changeset = Post.changeset(post, post_params, whodoneit(conn))
+        case Repo.update(changeset) do
+          {:ok, post} ->
+            conn
+            |> put_flash(:info, "Post updated successfully.")
+            |> redirect(to: post_path(conn, :show, post))
+          {:error, changeset} ->
+            render(conn, "edit.html", post: post, changeset: changeset)
+        end
+      end
+
+      def delete(conn, %{"id" => id}) do
+        changeset = Repo.get!(Post, id)
+        |> Post.changeset(%{}, whodoneit(conn))
+
+        Repo.delete!(changeset)
+
+        conn
+        |> put_flash(:info, "Post deleted successfully.")
+        |> redirect(to: post_path(conn, :index))
+      end
+
+      defp whodoneit(conn) do
+        # remove the password fields
+        whodoneit = Coherence.current_user(conn)
+        |> Admin.Whatwasit.Version.remove_fields(
+           ~w(password password_confirmation password_hash)a)
+        [whodoneit: whodoneit]
+      end
+    end
+```
+
 ## License
 
 `whatwasit` is Copyright (c) 2016 E-MetroTel

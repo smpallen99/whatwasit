@@ -79,8 +79,8 @@ defmodule <%= base %>.Whatwasit.Version do
   Insert a new version record in the database
   """
   def insert_version(changeset, action, opts) do
-    {whodoneit_id, name} = get_whodoneit_name_and_id(opts)
-    version_changeset(changeset, whodoneit_id, name, action)
+    whodoneit = remove_fields opts[:whodoneit]
+    version_changeset(changeset, whodoneit, action)
     |> changeset.repo.insert!
     changeset
   end
@@ -101,7 +101,7 @@ defmodule <%= base %>.Whatwasit.Version do
   end
 
   @doc false
-  def version_changeset(struct, whodoneit_id, name, action) do
+  def version_changeset(struct, whodoneit, action) do
     version_module = @version_module
     model = case struct do
       %{data: data} -> data
@@ -114,8 +114,7 @@ defmodule <%= base %>.Whatwasit.Version do
         item_id: model.id,
         object: model,
         action: "#{action}",
-        whodoneit_id: whodoneit_id,
-        whodoneit_name: name
+        whodoneit: whodoneit
       })
   end
 
@@ -128,15 +127,4 @@ defmodule <%= base %>.Whatwasit.Version do
     |> to_string
   end
 
-  @doc false
-  def get_whodoneit_name_and_id(opts) do
-    case Keyword.get(opts, :whodoneit) do
-      nil ->
-        {nil, nil}
-      %{} = user ->
-        id = Map.get(user, user.__struct__.__schema__(:primary_key) |> hd)
-
-        {id, opts[:whodoneit_name]}
-    end
-  end
 end
