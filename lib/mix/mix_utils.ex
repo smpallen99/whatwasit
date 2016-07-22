@@ -1,4 +1,5 @@
 defmodule Whatwasit.Mix.Utils do
+  @moduledoc false
 
   def rm_dir!(dir) do
     if File.dir? dir do

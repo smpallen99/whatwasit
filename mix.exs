@@ -10,7 +10,13 @@ defmodule Whatwasit.Mixfile do
      elixirc_paths: elixirc_paths(Mix.env),
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
-     deps: deps]
+     docs: [extras: ["README.md"], main: "Whatwasit"],
+     deps: deps,
+     package: package,
+     name: "Whatwasit",
+     description: """
+     Track changes to your Ecto models.
+     """ ]
   end
 
   def application do
@@ -28,6 +34,15 @@ defmodule Whatwasit.Mixfile do
       {:ecto, "~> 2.0"},
       {:phoenix, "~> 1.1"},
       {:postgrex, ">= 0.0.0", only: :test},
+      {:ex_doc, "== 0.11.5", only: :dev},
+      {:earmark, "== 0.2.1", only: :dev, override: true},
     ]
+  end
+
+  defp package do
+    [ maintainers: ["Stephen Pallen"],
+      licenses: ["MIT"],
+      links: %{ "Github" => "https://github.com/smpallen99/whatwasit" },
+      files: ~w(lib README.md mix.exs LICENSE)]
   end
 end
