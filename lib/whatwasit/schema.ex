@@ -1,4 +1,9 @@
 defmodule Whatwasit.Schema do
+  @moduledoc """
+  Support versions for Ecto Schema models.
+
+  Adds prepare_version and versions functions to your models.
+  """
   require Ecto.Query
   alias Whatwasit.Version
 
@@ -6,17 +11,32 @@ defmodule Whatwasit.Schema do
     name_field = opts[:name_field] || Application.get_env(:whatwasit, :name_field, :name)
     quote do
 
+      @doc """
+      Insert Version record on update and delete.
 
+      Adds a prepare_changes callback to your changeset which inserts a Version record upon
+      update and delete.
+      """
       def prepare_version(changeset, opts \\ []) do
         Whatwasit.Schema.prepare_version(changeset, Keyword.put(opts, :name_field, unquote(name_field)))
       end
 
+      @doc """
+      Get list of versions for a specific record.
+
+      Returns a list of versions of your model.
+      """
       def versions(schema, opts \\ []) do
         Whatwasit.Schema.versions(schema, Keyword.merge(unquote(opts), opts))
       end
     end
   end
 
+  @doc """
+  Helper function to add Version record on update and delete.
+
+  Inserts the version record.
+  """
   def prepare_version(changeset, opts) do
     name_field = opts[:name_field]
     changeset
@@ -37,6 +57,9 @@ defmodule Whatwasit.Schema do
     changeset
   end
 
+  @doc """
+  Helper function to return a list of versioned records.
+  """
   def versions(schema, opts \\ []) do
     repo = opts[:repo] || Application.get_env(:whatwasit, :repo)
     id = schema.id
@@ -49,6 +72,7 @@ defmodule Whatwasit.Schema do
     end)
   end
 
+  @doc false
   def version_changeset(struct, whodoneit_id, name, action) do
     model = case struct do
       %{data: data} -> data
@@ -66,6 +90,7 @@ defmodule Whatwasit.Schema do
       })
   end
 
+  @doc false
   def item_type(%{} = item), do: item_type(item.__struct__)
   def item_type(item) do
     Module.split(item)
@@ -74,6 +99,7 @@ defmodule Whatwasit.Schema do
     |> to_string
   end
 
+  @doc false
   def get_whodoneit_id(opts, name_field) do
     case Keyword.get(opts, :whodoneit) do
       nil ->
