@@ -1,4 +1,8 @@
-defmodule Whatwasit.Whatwasit.Version do
+defmodule <%= base %>.Whatwasit.Version do
+  @moduledoc """
+  Version schema for tracking model versions.
+
+  """
   use Ecto.Schema
   import Ecto
   import Ecto.Changeset
@@ -10,10 +14,9 @@ defmodule Whatwasit.Whatwasit.Version do
   schema "versions" do
     field :item_type, :string
     field :item_id, :integer
-    field :action, :string
-    field :object, :map
-    field :whodoneit_name, :string
-    belongs_to :whodoneit, TestWhatwasit.User
+    field :action, :string  # ~w(update delete)
+    field :object, :map     # versioned schema stored as a map
+    <%= schema_fields %>
     timestamps
   end
 
@@ -23,7 +26,7 @@ defmodule Whatwasit.Whatwasit.Version do
   def changeset(model, params \\ %{}) do
     params = update_in params, [:object], &(remove_fields(&1))
     model
-    |> cast(params, ~w(item_type item_id object action whodoneit_id whodoneit_name))
+    |> cast(params, <%= changeset_fields %>)
     |> validate_required(~w(item_type item_id object)a)
   end
 
@@ -51,6 +54,9 @@ defmodule Whatwasit.Whatwasit.Version do
     end)
   end
 
+  @doc """
+  Insert a new version record in the database
+  """
   def insert_version(changeset, action, opts) do
     {whodoneit_id, name} = get_whodoneit_name_and_id(opts)
     version_changeset(changeset, whodoneit_id, name, action)
@@ -111,86 +117,5 @@ defmodule Whatwasit.Whatwasit.Version do
 
         {id, opts[:whodoneit_name]}
     end
-  end
-end
-
-defmodule TestWhatwasit.SchemaTest do
-  use TestWhatwasit.ModelCase
-  import TestWhatwasit.TestHelpers
-  alias TestWhatwasit.{Post}
-  alias Whatwasit.Whatwasit.Version
-
-  setup do
-    user = insert_user
-    post = insert_post
-    {:ok, post: post, user: user}
-  end
-
-  test "prepare_version update", %{post: post} do
-    title = post.title
-    {:ok, post} = Post.changeset(post, %{title: "new title"})
-    |> Repo.update
-    assert post.title == "new title"
-    [version] = Repo.all Version
-    assert version.object["title"] == title
-    assert version.object["body"] == post.body
-    assert version.item_id == post.id
-    assert version.item_type == "Post"
-    assert version.action == "update"
-  end
-
-  test "prepare_version delete", %{post: post} do
-    title = post.title
-    body = post.body
-    {:ok, post} = Post.changeset(post, %{})
-    |> Repo.delete
-    [version] = Repo.all Version
-    assert version.object["title"] == title
-    assert version.object["body"] == body
-    assert version.item_id == post.id
-    assert version.item_type == "Post"
-    assert version.action == "delete"
-  end
-
-  test "prepare_version update with user", %{post: post, user: user} do
-    title = post.title
-    {:ok, _post} = Post.changeset(post, %{title: "new title"}, whodoneit: user, whodoneit_name: user.name)
-    |> Repo.update
-    [version] = Repo.all(Version) |> Repo.preload([:whodoneit])
-    assert version.object["title"] == title
-    assert version.whodoneit_name == user.name
-    assert version.whodoneit.id == user.id
-    assert version.action == "update"
-  end
-
-  test "prepare_version delete with user", %{post: post, user: user} do
-    title = post.title
-    _ = Post.changeset(post, %{}, whodoneit: user, whodoneit_name: user.name)
-    |> Repo.delete!
-    [version] = Repo.all(Version) |> Repo.preload([:whodoneit])
-    assert version.object["title"] == title
-    assert version.whodoneit_name == user.name
-    assert version.whodoneit.id == user.id
-    assert version.action == "delete"
-  end
-
-  test "versions", %{post: post1} do
-    title1 = post1.title
-    post2 = insert_post
-    title2 = post2.title
-
-    post1 = Post.changeset(post1, %{title: "one"})
-    |> Repo.update!
-    Post.changeset(post1, %{title: "two"})
-    |> Repo.update!
-    Post.changeset(post2, %{title: "three"})
-    |> Repo.update!
-
-    [v12, v11] = Version.versions post1
-    [v21] = Version.versions post2
-
-    assert v12.title == "one"
-    assert v11.title == title1
-    assert v21.title == title2
   end
 end

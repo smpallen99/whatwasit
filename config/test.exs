@@ -6,7 +6,8 @@ config :logger, level: :warn
 config :whatwasit,
   user_schema: TestWhatwasit.User,
   repo: TestWhatwasit.Repo,
-  module: TestWhatwasit
+  module: TestWhatwasit,
+  version_module: TestWhatwasit.Whatwasit.Version
 
 config :whatwasit, TestWhatwasit.Repo,
   adapter: Ecto.Adapters.Postgres,

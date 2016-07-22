@@ -11,7 +11,7 @@ defmodule Whatwasit do
 
       defmodule MyProject.Post do
         use MyProject.Web, :model
-        use Whatwasit.Schema     # add this
+        use Whatwasit            # add this
 
         schema "posts" do
           field :title, :string
@@ -34,7 +34,7 @@ defmodule Whatwasit do
         # ...
         def delete(conn, %{"id" => id}) do
           changeset = Repo.get!(Post, id)
-          |> Post.changeset(%{})
+          |> Post.changeset
 
           Repo.delete!(changeset)
 
@@ -54,7 +54,7 @@ defmodule Whatwasit do
 
       defmodule MyProject.Post do
         use MyProject.Web, :model
-        use Whatwasit.Schema
+        use Whatwasit
         # ...
         def changeset(model, params \\ %{}, opts \\ []) do
           model
@@ -66,12 +66,18 @@ defmodule Whatwasit do
 
   Update the controller
 
-      defmodule Admin.PostController do
+      defmodule MyProject.PostController do
         # ...
+
+        # Add this
+        defp whodoneit(conn) do
+          user = Coherence.current_user(conn)
+          [whodoneit: user , whodoneit_name: user.name]
+        end
 
         def update(conn, %{"id" => id, "post" => post_params}) do
           post = Repo.get!(Post, id)
-          changeset = Post.changeset(post, post_params, whodoneit: Coherence.current_user(conn))
+          changeset = Post.changeset(post, post_params, whodoneit(conn))
           case Repo.update(changeset) do
             {:ok, post} ->
               conn
@@ -84,7 +90,7 @@ defmodule Whatwasit do
 
         def delete(conn, %{"id" => id}) do
           changeset = Repo.get!(Post, id)
-          |> Post.changeset(%{}, whodoneit: Coherence.current_user(conn))
+          |> Post.changeset(%{}, whodoneit(conn))
 
           Repo.delete!(changeset)
 
@@ -111,4 +117,12 @@ defmodule Whatwasit do
 
 
   """
+
+  defmacro __using__(_opts \\ []) do
+    base =  Mix.Project.get |> Module.split |> Enum.reverse |> Enum.at(1)
+    version_module = Module.concat([base, Whatwasit, Version])
+    quote do
+      import unquote(version_module)
+    end
+  end
 end

@@ -35,7 +35,6 @@ end
 defmodule TestWhatwasit.Post do
   use Ecto.Schema
   import Ecto.Changeset
-  use Whatwasit.Schema
 
   schema "posts" do
     field :title, :string
@@ -46,7 +45,7 @@ defmodule TestWhatwasit.Post do
   def changeset(model, params \\ %{}, opts \\ []) do
     model
     |> cast(params, ~w(title body))
-    |>validate_required(~w(title body)a)
-    |> prepare_version(opts)
+    |> validate_required(~w(title body)a)
+    |> Whatwasit.Whatwasit.Version.prepare_version(opts)
   end
 end

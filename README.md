@@ -23,7 +23,7 @@ mix.exs
 ```elixir
   defp deps do
      ...
-     {:whatwasit, github: "smpallen99/whatwasit"},
+     {:whatwasit, "~> 0.2"},
      ...
   end
 ```
@@ -48,8 +48,7 @@ Add the config instructions to your project's `config/config.exs` file:
 # config/config.exs
 
 config :whatwasit,
-  repo: MyProject.Repo,
-  user_schema: MyProject.User
+  repo: MyProject.Repo
 ```
 
 Run the migration:
@@ -65,7 +64,7 @@ Add whatwasit to each model you would like to track:
 
 defmodule MyProject.Post do
   use MyProject.Web, :model
-  use Whatwasit.Schema     # add this
+  use Whatwasit          # add this
 
   schema "posts" do
     field :title, :string
@@ -85,16 +84,16 @@ end
 After editing a post, you can view all the versions for all models:
 
 ```bash
-    iex(1)> MyProject.Repo.all Whatwasit.Version
+    iex(1)> MyProject.Repo.all MyProject.Whatwasit.Version
 
-    [%Whatwasit.Version{__meta__: #Ecto.Schema.Metadata<:loaded, "versions">,
+    [%MyProject.Whatwasit.Version{__meta__: #Ecto.Schema.Metadata<:loaded, "versions">,
       action: "update", id: 16, inserted_at: #Ecto.DateTime<2016-07-22 01:49:55>,
       item_id: 9, item_type: "Post",
       object: %{"body" => "42", "id" => 9, "inserted_at" => "2016-07-22T01:49:25",
         "title" => "The Answer", "updated_at" => "2016-07-22T01:49:25"},
       updated_at: #Ecto.DateTime<2016-07-22 01:49:55>,
       whodoneit: #Ecto.Association.NotLoaded<association :whodoneit is not loaded>,
-      whodoneit_id: nil, whodoneit_name: nil}]
+      }]
     iex(2)>
 ```
 
@@ -108,7 +107,7 @@ Alternatively you retrieve a list of versioned models with:
      inserted_at: #Ecto.DateTime<2016-07-22 01:49:25>, title: "What's the Question",
      updated_at: #Ecto.DateTime<2016-07-22 01:49:55>}
 
-    iex(5)> MyProject.Post.versions post
+    iex(5)> MyProject.Whatwasit.Version.versions post
 
     [%MyProject.Post{__meta__: #Ecto.Schema.Metadata<:loaded, "posts">, body: "42",
       id: 9, inserted_at: "2016-07-22T01:49:25", title: "The Answer",
@@ -128,7 +127,7 @@ defmodule MyProject.PostController do
   # ...
   def delete(conn, %{"id" => id}) do
     changeset = Repo.get!(Post, id)
-    |> Post.changeset(%{})
+    |> Post.changeset
 
     Repo.delete!(changeset)
 
@@ -169,12 +168,18 @@ end
 Pass the current user to the changeset from your controller:
 
 ```elixir
-defmodule Admin.PostController do
+defmodule MyProject.PostController do
   # ...
+
+  # Add this
+  defp whodoneit(conn) do
+    user = Coherence.current_user(conn)
+    [whodoneit: user , whodoneit_name: user.name]
+  end
 
   def update(conn, %{"id" => id, "post" => post_params}) do
     post = Repo.get!(Post, id)
-    changeset = Post.changeset(post, post_params, whodoneit: Coherence.current_user(conn))
+    changeset = Post.changeset(post, post_params, whodoneit(conn))
     case Repo.update(changeset) do
       {:ok, post} ->
         conn
@@ -187,7 +192,7 @@ defmodule Admin.PostController do
 
   def delete(conn, %{"id" => id}) do
     changeset = Repo.get!(Post, id)
-    |> Post.changeset(%{}, whodoneit: Coherence.current_user(conn))
+    |> Post.changeset(%{}, whodoneit(conn))
 
     Repo.delete!(changeset)
 
@@ -195,6 +200,7 @@ defmodule Admin.PostController do
     |> put_flash(:info, "Post deleted successfully.")
     |> redirect(to: post_path(conn, :index))
   end
+
 end
 ```
 
