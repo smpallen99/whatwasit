@@ -16,8 +16,11 @@ defmodule Mix.Tasks.Whatwasit.Install do
       # print configuration
       mix whatwasit.install --no-migrations
 
+      # Add current user tracking
+      mix whatwasit.install --whodoneit
+
       # use a different user model
-      mix whatwasit.install --model="Account accounts"
+      mix whatwasit.install --whodoneit --model="Account accounts"
 
   The following options are available:
 
@@ -25,6 +28,7 @@ defmodule Mix.Tasks.Whatwasit.Install do
   * `--repo` -- The project's repo if different than the standard default
   * `--module` -- The projects base module
   * `--migration-path` -- The migration path
+  * `--whodoneit` -- Add current user tracking
 
   The following options are available to disable features:
 
@@ -45,7 +49,7 @@ defmodule Mix.Tasks.Whatwasit.Install do
   # all boolean_options
   @boolean_options   @default_booleans
 
-  @switches [repo: :string, migration_path: :string, model: :string, module: :string] ++ Enum.map(@boolean_options, &({String.to_atom(&1), :boolean}))
+  @switches [repo: :string, migration_path: :string, model: :string, module: :string, whodoneit: :boolean] ++ Enum.map(@boolean_options, &({String.to_atom(&1), :boolean}))
   @switch_names Enum.map(@switches, &(elem(&1, 0)))
 
 
@@ -68,6 +72,14 @@ defmodule Mix.Tasks.Whatwasit.Install do
 
   defp gen_migration(%{migrations: true, boilerplate: true} = config) do
     {_, table_name} = config[:user_schema]
+    whodoneit = if config[:whodoneit] do
+      """
+        add :whodoneit_name, :string
+        add :whodoneit_id, references(:#{table_name}, on_delete: :nilify_all)
+      """
+    else
+      ""
+    end
     do_gen_migration config, "create_whatwasit_version", fn repo, _path, file, name ->
 
       change = """
@@ -76,9 +88,7 @@ defmodule Mix.Tasks.Whatwasit.Install do
             add :item_id, :integer, null: false
             add :action, :string
             add :object, :map, null: false
-            add :whodoneit_name, :string
-            add :whodoneit_id, references(:#{table_name}, on_delete: :nilify_all)
-
+      """ <> whodoneit <> """
             timestamps
           end
       """
@@ -105,13 +115,23 @@ defmodule Mix.Tasks.Whatwasit.Install do
     config
   end
 
-  defp print_instructions(config) do
+  defp print_instructions(%{whodoneit: true} = config) do
     Mix.shell.info """
     Add the following to your config/config.exs:
 
       config :whatwasit,
         repo: #{config[:repo]},
         user_schema: #{config[:user_schema] |> elem(0)}
+
+    """
+    config
+  end
+  defp print_instructions(config) do
+    Mix.shell.info """
+    Add the following to your config/config.exs:
+
+      config :whatwasit,
+        repo: #{config[:repo]}
 
     """
     config
@@ -159,6 +179,7 @@ defmodule Mix.Tasks.Whatwasit.Install do
     |> Map.put(:binding, binding)
     |> Map.put(:migration_path, opts[:migration_path])
     |> Map.put(:module, opts[:module])
+    |> Map.put(:whodoneit, opts[:whodoneit])
     |> do_default_config(opts)
   end
 

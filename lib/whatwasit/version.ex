@@ -12,9 +12,12 @@ defmodule Whatwasit.Version do
     field :item_id, :integer
     field :action, :string  # ~w(update delete)
     field :object, :map     # versioned schema stored as a map
-    field :whodoneit_name, :string  # store name also to track if user is later deleted
-    belongs_to :whodoneit, Application.get_env(:whatwasit, :user_schema)
-
+    case Application.get_env(:whatwasit, :user_schema) do
+      nil -> nil
+      user_schema ->
+        field :whodoneit_name, :string  # store name also to track if user is later deleted
+        belongs_to :whodoneit, user_schema
+    end
     timestamps
   end
 
@@ -22,9 +25,18 @@ defmodule Whatwasit.Version do
   Create a changeset for the version record
   """
   def changeset(model, params \\ %{}) do
-    params = update_in params, [:object], &(Map.delete(&1, :__meta__) |> Map.delete(:__struct__))
+    who_fields = if Application.get_env(:whatwasit, :user_schema),
+      do: ~w(whodoneit_id whodoneit_name), else: []
+    params = update_in params, [:object], &(remove_fields(&1))
     model
-    |> cast(params, ~w(item_type item_id object whodoneit_id action whodoneit_name))
+    |> cast(params, ~w(item_type item_id object action) ++ who_fields)
     |> validate_required(~w(item_type item_id object)a)
+  end
+
+  defp remove_fields(model) do
+    model.__struct__.__schema__(:associations)
+    |> Enum.reduce(model, &(Map.delete(&2, &1)))
+    |> Map.delete(:__meta__)
+    |> Map.delete(:__struct__)
   end
 end

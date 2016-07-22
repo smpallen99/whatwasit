@@ -46,6 +46,12 @@ defmodule Whatwasit do
 
   You can also track who made the change with a few extra changes.
 
+  Install with the `--whodoneit` option:
+
+      mix whodoneit.install --whodoneit
+
+  Update the model
+
       defmodule MyProject.Post do
         use MyProject.Web, :model
         use Whatwasit.Schema
@@ -57,6 +63,8 @@ defmodule Whatwasit do
           |> prepare_version(opts)
         end
       end
+
+  Update the controller
 
       defmodule Admin.PostController do
         # ...

@@ -143,6 +143,12 @@ end
 
 A few extra steps are required for tracking who made the change. The following example may be a little different based on the function you use to get the current user. The following example uses [Coherence](https://github.com/smpallen99/coherence) as the authentication package:
 
+Install with the `--whodoneit` option:
+
+```bash
+    mix whodoneit.install --whodoneit
+```
+
 Add an extra parameter to your model's changeset function and pass that to `prepare_version:
 
 ```elixir
