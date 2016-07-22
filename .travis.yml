@@ -11,4 +11,6 @@ sudo: false
 notification:
   recipients:
     - smpallen99@yahoo.com
+addons:
+  postgresql: "9.4"
 
