@@ -6,14 +6,13 @@ defmodule Whatwasit.Schema do
     name_field = opts[:name_field] || Application.get_env(:whatwasit, :name_field, :name)
     quote do
 
-      @opts unquote(opts)
 
       def prepare_version(changeset, opts \\ []) do
         Whatwasit.Schema.prepare_version(changeset, Keyword.put(opts, :name_field, unquote(name_field)))
       end
 
-      def versions(schema, @opts) do
-        Whatwasit.Schema.versions(schema, @opts)
+      def versions(schema, opts \\ []) do
+        Whatwasit.Schema.versions(schema, Keyword.merge(unquote(opts), opts))
       end
     end
   end
@@ -42,7 +41,7 @@ defmodule Whatwasit.Schema do
     repo = opts[:repo] || Application.get_env(:whatwasit, :repo)
     id = schema.id
     type = Whatwasit.Utils.item_type schema
-    Ecto.Query.where(Admin.Version, [a], a.item_id == ^id and a.item_type == ^type)
+    Ecto.Query.where(Whatwasit.Version, [a], a.item_id == ^id and a.item_type == ^type)
     |> Ecto.Query.order_by(desc: :id)
     |> repo.all
     |> Enum.map(fn item ->

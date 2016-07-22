@@ -82,7 +82,7 @@ defmodule MyProject.Post do
 end
 ```
 
-After editing a post, you can view the versions:
+After editing a post, you can view all the versions for all models:
 
 ```bash
     iex(1)> MyProject.Repo.all Whatwasit.Version
@@ -96,6 +96,25 @@ After editing a post, you can view the versions:
       whodoneit: #Ecto.Association.NotLoaded<association :whodoneit is not loaded>,
       whodoneit_id: nil, whodoneit_name: nil}]
     iex(2)>
+```
+
+Alternatively you retrieve a list of versioned models with:
+
+```bash
+    iex(4)> post = MyProject.Repo.get MyProject.Post, 9
+
+    %MyProject.Post{__meta__: #Ecto.Schema.Metadata<:loaded, "posts">,
+     body: "The answer is 42", id: 9,
+     inserted_at: #Ecto.DateTime<2016-07-22 01:49:25>, title: "What's the Question",
+     updated_at: #Ecto.DateTime<2016-07-22 01:49:55>}
+
+    iex(5)> MyProject.Post.versions post
+
+    [%MyProject.Post{__meta__: #Ecto.Schema.Metadata<:loaded, "posts">, body: "42",
+      id: 9, inserted_at: "2016-07-22T01:49:25", title: "The Answer",
+      updated_at: "2016-07-22T01:49:25"}]
+
+    iex(6)>
 ```
 
 ## Tracking Deletes

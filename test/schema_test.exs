@@ -58,4 +58,23 @@ defmodule TestWhatwasit.SchemaTest do
     assert version.action == "delete"
   end
 
+  test "versions", %{post: post1} do
+    title1 = post1.title
+    post2 = insert_post
+    title2 = post2.title
+
+    post1 = Post.changeset(post1, %{title: "one"})
+    |> Repo.update!
+    Post.changeset(post1, %{title: "two"})
+    |> Repo.update!
+    Post.changeset(post2, %{title: "three"})
+    |> Repo.update!
+
+    [v12, v11] = Post.versions post1
+    [v21] = Post.versions post2
+
+    assert v12.title == "one"
+    assert v11.title == title1
+    assert v21.title == title2
+  end
 end
