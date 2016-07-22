@@ -9,6 +9,13 @@ defmodule TestWhatwasit.Migrations do
       timestamps
     end
 
+    create table(:accounts) do
+      add :full_name, :string
+      add :email, :string
+
+      timestamps
+    end
+
     create table(:versions) do
       add :item_type, :string, null: false
       add :item_id, :integer, null: false
@@ -19,5 +26,13 @@ defmodule TestWhatwasit.Migrations do
 
       timestamps
     end
+
+    create table(:posts) do
+      add :title, :string
+      add :body, :text
+
+      timestamps
+    end
+
   end
 end
