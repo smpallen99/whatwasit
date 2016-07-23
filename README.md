@@ -262,6 +262,15 @@ For this option, your models will be the same. However, you will need to make ch
       end
     end
 ```
+## Whodoneit Model with Primary Key Type uuid
+
+If your user model has a uuid primary key type of uuid, use the `--whodoneit-id-type=uuid` install option:
+
+```bash
+    mix whatwasit.install --whodoneit-id-type=uuid
+```
+
+This will create the correct association type in the migration file as well as the Version shema file.
 
 ## License
 

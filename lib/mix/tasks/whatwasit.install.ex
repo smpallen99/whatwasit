@@ -28,6 +28,9 @@ defmodule Mix.Tasks.Whatwasit.Install do
       # store the whodoneit model in a map
       mix whatwasit.install --whodoneit-map
 
+      # set the whodoneit model foreign key type to uuid
+      mix whatwasit.install --whodoneit-id-type=uuid
+
   The following options are available:
 
   * `--model` -- The authentication model and table_name
@@ -37,6 +40,7 @@ defmodule Mix.Tasks.Whatwasit.Install do
   * `--whodoneit` -- Add current user tracking
   * `--whodoneit-id` -- Use a simple id field instead of a relationship
   * `--whodoneit-map` -- Store the current_user as a map
+  * `--whodoneit-id-type` -- Set the foreign key type
 
   The following options are available to disable features:
 
@@ -59,7 +63,7 @@ defmodule Mix.Tasks.Whatwasit.Install do
   # all boolean_options
   @boolean_options   @default_booleans
 
-  @switches [repo: :string, migration_path: :string, model: :string, module: :string, whodoneit: :boolean, whodoneit_id: :string, whodoneit_map: :boolean] ++ Enum.map(@boolean_options, &({String.to_atom(&1), :boolean}))
+  @switches [repo: :string, migration_path: :string, model: :string, module: :string, whodoneit: :boolean, whodoneit_id: :string, whodoneit_map: :boolean, whodoneit_id_type: :string] ++ Enum.map(@boolean_options, &({String.to_atom(&1), :boolean}))
   @switch_names Enum.map(@switches, &(elem(&1, 0)))
 
 
@@ -102,6 +106,8 @@ defmodule Mix.Tasks.Whatwasit.Install do
     whodoneit_id = config[:whodoneit_id]
     whodoneit = config[:whodoneit]
     {schema_fields, add_changeset_fields} = cond do
+      config[:whodoneit_id_type] ->
+        {name_field <> "    belongs_to :whodoneit, #{config[:user_schema] |> elem(0)}, type: Ecto.UUID\n", whodoneit_changeset_fields}
       whodoneit_id ->
         {name_field <> "    field :whodoneit_id, :#{whodoneit_id}\n", whodoneit_changeset_fields}
       whodoneit ->
@@ -126,6 +132,11 @@ defmodule Mix.Tasks.Whatwasit.Install do
   defp gen_migration(%{migrations: true, boilerplate: true} = config) do
     {_, table_name} = config[:user_schema]
     whodoneit = cond do
+      config[:whodoneit_id_type] ->
+        """
+              add :whodoneit_name, :string
+              add :whodoneit_id, references(:#{table_name}, on_delete: :nilify_all, type: :uuid)
+        """
       config[:whodoneit_map] ->
         """
               add :whodoneit, :map
@@ -286,7 +297,18 @@ defmodule Mix.Tasks.Whatwasit.Install do
 
     user_schema = parse_model(opts[:model], base, opts)
 
-    whodoneit = if opts[:whodoneit_map] || opts[:whodoneit_id], do: true, else: opts[:whodoneit]
+    whodoneit = if opts[:whodoneit_map] || opts[:whodoneit_id] || opts[:whodoneit_id_type], do: true, else: opts[:whodoneit]
+
+    case opts[:whodoneit_id_type] do
+      false -> :ok
+      nil -> :ok
+      "uuid" -> :ok
+      other ->
+        IO.puts "other: #{inspect other}"
+        Mix.raise """
+        --whodoneit-id-type only supports option uuid
+        """
+    end
 
     bin_opts
     |> Enum.map(&({&1, true}))
@@ -300,6 +322,7 @@ defmodule Mix.Tasks.Whatwasit.Install do
     |> Map.put(:whodoneit, whodoneit)
     |> Map.put(:whodoneit_id, opts[:whodoneit_id])
     |> Map.put(:whodoneit_map, opts[:whodoneit_map])
+    |> Map.put(:whodoneit_id_type, opts[:whodoneit_id_type])
     |> do_default_config(opts)
   end
 

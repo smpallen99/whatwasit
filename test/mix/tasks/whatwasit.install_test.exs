@@ -160,6 +160,49 @@ defmodule Mix.Tasks.Whatwasit.InstallTest do
         end
       end
     end
-  end
 
+    test "whodoneit-id-type" do
+      in_tmp "whodoneit-id-type", fn ->
+        Mix.Tasks.Whatwasit.Install.run ["--whodoneit-id-type=uuid", "--migration-path=migrations", "--module=TestWhatwasit"]
+
+        assert [migration] = Path.wildcard("migrations/*_create_whatwasit_version.exs")
+
+        assert_file migration, fn file ->
+          assert_migration_base file
+          assert file =~ "add :whodoneit_name, :string"
+          assert file =~ "add :whodoneit_id, references(:users, on_delete: :nilify_all, type: :uuid)"
+          assert file =~ "timestamps"
+        end
+
+        assert_file @model_path, fn file ->
+          assert_schema_base file
+          assert file =~ "field :whodoneit_name, :string"
+          assert file =~ "belongs_to :whodoneit, TestWhatwasit.User, type: Ecto.UUID"
+          assert file =~ "|> cast(params, ~w(item_type item_id object action whodoneit_id whodoneit_name)a)"
+        end
+      end
+    end
+
+    test "whodoneit-id-type Account" do
+      in_tmp "whodoneit-id-type_Account", fn ->
+        Mix.Tasks.Whatwasit.Install.run ["--whodoneit-id-type=uuid", "--migration-path=migrations", "--module=TestWhatwasit", "--model=Account accounts"]
+
+        assert [migration] = Path.wildcard("migrations/*_create_whatwasit_version.exs")
+
+        assert_file migration, fn file ->
+          assert_migration_base file
+          assert file =~ "add :whodoneit_name, :string"
+          assert file =~ "add :whodoneit_id, references(:accounts, on_delete: :nilify_all, type: :uuid)"
+          assert file =~ "timestamps"
+        end
+
+        assert_file @model_path, fn file ->
+          assert_schema_base file
+          assert file =~ "field :whodoneit_name, :string"
+          assert file =~ "belongs_to :whodoneit, TestWhatwasit.Account, type: Ecto.UUID"
+          assert file =~ "|> cast(params, ~w(item_type item_id object action whodoneit_id whodoneit_name)a)"
+        end
+      end
+    end
+  end
 end
