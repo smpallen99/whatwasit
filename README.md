@@ -145,7 +145,7 @@ A few extra steps are required for tracking who made the change. The following e
 Install with the `--whodoneit` option:
 
 ```bash
-    mix whodoneit.install --whodoneit
+    mix whatwasit.install --whodoneit
 ```
 
 Add an extra parameter to your model's changeset function and pass that to `prepare_version:
