@@ -109,7 +109,7 @@ defmodule Whatwasit do
        inserted_at: #Ecto.DateTime<2016-07-22 01:49:25>, title: "What's the Question",
        updated_at: #Ecto.DateTime<2016-07-22 01:49:55>}
 
-      iex(5)> MyProject.Post.versions post
+      iex(5)> MyProject.Whatwasit.Version.versions post
 
       [%MyProject.Post{__meta__: #Ecto.Schema.Metadata<:loaded, "posts">, body: "42",
         id: 9, inserted_at: "2016-07-22T01:49:25", title: "The Answer",

@@ -87,17 +87,32 @@ defmodule <%= base %>.Whatwasit.Version do
 
   @doc """
   Helper function to return a list of versioned records.
+
+  ## Options
+
+  * `:repo` -- The repo module to be used
+  * `:full_version` -- When true, returns the complete version record
+                       otherwise return a schema (default)
   """
   def versions(schema, opts \\ []) do
     repo = opts[:repo] || Application.get_env(:whatwasit, :repo)
+    full_version = Keyword.get(opts, :full_version, false)
     id = schema.id
     type = Whatwasit.Utils.item_type schema
     Ecto.Query.where(@version_module, [a], a.item_id == ^id and a.item_type == ^type)
     |> Ecto.Query.order_by(desc: :id)
     |> repo.all
     |> Enum.map(fn item ->
-      Whatwasit.Utils.cast(schema, item.object)
+      cast_version(schema, item, full_version)
     end)
+  end
+
+  defp cast_version(schema, item, funn_version \\ false)
+  defp cast_version(schema, item, false) do
+    Whatwasit.Utils.cast(schema, item.object)
+  end
+  defp cast_version(schema, item, true) do
+    struct(item, object: cast_version(schema, item))
   end
 
   @doc false
