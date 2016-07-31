@@ -43,6 +43,6 @@ defmodule Whatwasit.Mixfile do
     [ maintainers: ["Stephen Pallen"],
       licenses: ["MIT"],
       links: %{ "Github" => "https://github.com/smpallen99/whatwasit" },
-      files: ~w(lib README.md mix.exs LICENSE)]
+      files: ~w(lib priv README.md mix.exs LICENSE)]
   end
 end
