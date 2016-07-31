@@ -17,21 +17,20 @@ Whatwasit is a package for tracking changes to your project's Ecto models for au
 
 ## Installation
 
-Add the dependency:
+Add the dependency to `mix.exs`:
 
-mix.exs
 ```elixir
-  defp deps do
-     ...
-     {:whatwasit, "~> 0.2"},
-     ...
-  end
+defp deps do
+   ...
+   {:whatwasit, "~> 0.2"},
+   ...
+end
 ```
 
 Get the dependency:
 
 ```bash
-    mix deps.get
+mix deps.get
 ```
 
 ## Getting Started
@@ -39,7 +38,7 @@ Get the dependency:
 Run the install mix task:
 
 ```bash
-    mix whatwasit.install
+mix whatwasit.install
 ```
 
 Add the config instructions to your project's `config/config.exs` file:
@@ -54,7 +53,7 @@ config :whatwasit,
 Run the migration:
 
 ```bash
-    mix ecto.migrate
+mix ecto.migrate
 ```
 
 Add whatwasit to each model you would like to track:
@@ -83,37 +82,31 @@ end
 
 After editing a post, you can view all the versions for all models:
 
-```bash
-    iex(1)> MyProject.Repo.all MyProject.Whatwasit.Version
-
-    [%MyProject.Whatwasit.Version{__meta__: #Ecto.Schema.Metadata<:loaded, "versions">,
-      action: "update", id: 16, inserted_at: #Ecto.DateTime<2016-07-22 01:49:55>,
-      item_id: 9, item_type: "Post",
-      object: %{"body" => "42", "id" => 9, "inserted_at" => "2016-07-22T01:49:25",
-        "title" => "The Answer", "updated_at" => "2016-07-22T01:49:25"},
-      updated_at: #Ecto.DateTime<2016-07-22 01:49:55>,
-      whodoneit: #Ecto.Association.NotLoaded<association :whodoneit is not loaded>,
-      }]
-    iex(2)>
+```iex
+iex(1)> MyProject.Repo.all MyProject.Whatwasit.Version
+[%MyProject.Whatwasit.Version{__meta__: #Ecto.Schema.Metadata<:loaded, "versions">,
+  action: "update", id: 16, inserted_at: #Ecto.DateTime<2016-07-22 01:49:55>,
+  item_id: 9, item_type: "Post",
+  object: %{"body" => "42", "id" => 9, "inserted_at" => "2016-07-22T01:49:25",
+    "title" => "The Answer", "updated_at" => "2016-07-22T01:49:25"},
+  updated_at: #Ecto.DateTime<2016-07-22 01:49:55>,
+  whodoneit: #Ecto.Association.NotLoaded<association :whodoneit is not loaded>,
+  }]
 ```
 
 Alternatively you retrieve a list of versioned models with:
 
-```bash
-    iex(4)> post = MyProject.Repo.get MyProject.Post, 9
+```iex
+iex(1)> post = MyProject.Repo.get MyProject.Post, 9
+%MyProject.Post{__meta__: #Ecto.Schema.Metadata<:loaded, "posts">,
+ body: "The answer is 42", id: 9,
+ inserted_at: #Ecto.DateTime<2016-07-22 01:49:25>, title: "What's the Question",
+ updated_at: #Ecto.DateTime<2016-07-22 01:49:55>}
 
-    %MyProject.Post{__meta__: #Ecto.Schema.Metadata<:loaded, "posts">,
-     body: "The answer is 42", id: 9,
-     inserted_at: #Ecto.DateTime<2016-07-22 01:49:25>, title: "What's the Question",
-     updated_at: #Ecto.DateTime<2016-07-22 01:49:55>}
-
-    iex(5)> MyProject.Whatwasit.Version.versions post
-
-    [%MyProject.Post{__meta__: #Ecto.Schema.Metadata<:loaded, "posts">, body: "42",
-      id: 9, inserted_at: "2016-07-22T01:49:25", title: "The Answer",
-      updated_at: "2016-07-22T01:49:25"}]
-
-    iex(6)>
+iex(2)> MyProject.Whatwasit.Version.versions post
+[%MyProject.Post{__meta__: #Ecto.Schema.Metadata<:loaded, "posts">, body: "42",
+  id: 9, inserted_at: "2016-07-22T01:49:25", title: "The Answer",
+  updated_at: "2016-07-22T01:49:25"}]
 ```
 
 ## Tracking Deletes
@@ -145,7 +138,7 @@ A few extra steps are required for tracking who made the change. The following e
 Install with the `--whodoneit` option:
 
 ```bash
-    mix whodoneit.install --whodoneit
+mix whatwasit.install --whodoneit
 ```
 
 Add an extra parameter to your model's changeset function and pass that to `prepare_version:
@@ -217,7 +210,7 @@ The above example saves a reference to the current user in the database. You may
 Use the `--whodoneit-map` option to enable this:
 
 ```bash
-    mix whatwasit.install --whodoneit-map
+mix whatwasit.install --whodoneit-map
 ```
 
 This option replaces the `whodoneit_id` and `whodoneit_name` fields in the Version schema with `:whodoneit :map`.
@@ -225,49 +218,49 @@ This option replaces the `whodoneit_id` and `whodoneit_name` fields in the Versi
 For this option, your models will be the same. However, you will need to make changes in your controller like this:
 
 ```elixir
-    defmodule MyProject.PostController do
-      use MyProject.Web, :controller
-      # ...
+defmodule MyProject.PostController do
+  use MyProject.Web, :controller
+  # ...
 
-      def update(conn, %{"id" => id, "post" => post_params}) do
-        post = Repo.get!(Post, id)
-        changeset = Post.changeset(post, post_params, whodoneit(conn))
-        case Repo.update(changeset) do
-          {:ok, post} ->
-            conn
-            |> put_flash(:info, "Post updated successfully.")
-            |> redirect(to: post_path(conn, :show, post))
-          {:error, changeset} ->
-            render(conn, "edit.html", post: post, changeset: changeset)
-        end
-      end
-
-      def delete(conn, %{"id" => id}) do
-        changeset = Repo.get!(Post, id)
-        |> Post.changeset(%{}, whodoneit(conn))
-
-        Repo.delete!(changeset)
-
+  def update(conn, %{"id" => id, "post" => post_params}) do
+    post = Repo.get!(Post, id)
+    changeset = Post.changeset(post, post_params, whodoneit(conn))
+    case Repo.update(changeset) do
+      {:ok, post} ->
         conn
-        |> put_flash(:info, "Post deleted successfully.")
-        |> redirect(to: post_path(conn, :index))
-      end
-
-      defp whodoneit(conn) do
-        # remove the password fields
-        whodoneit = Coherence.current_user(conn)
-        |> Admin.Whatwasit.Version.remove_fields(
-           ~w(password password_confirmation password_hash)a)
-        [whodoneit: whodoneit]
-      end
+        |> put_flash(:info, "Post updated successfully.")
+        |> redirect(to: post_path(conn, :show, post))
+      {:error, changeset} ->
+        render(conn, "edit.html", post: post, changeset: changeset)
     end
+  end
+
+  def delete(conn, %{"id" => id}) do
+    changeset = Repo.get!(Post, id)
+    |> Post.changeset(%{}, whodoneit(conn))
+
+    Repo.delete!(changeset)
+
+    conn
+    |> put_flash(:info, "Post deleted successfully.")
+    |> redirect(to: post_path(conn, :index))
+  end
+
+  defp whodoneit(conn) do
+    # remove the password fields
+    whodoneit = Coherence.current_user(conn)
+    |> Admin.Whatwasit.Version.remove_fields(
+       ~w(password password_confirmation password_hash)a)
+    [whodoneit: whodoneit]
+  end
+end
 ```
 ## Whodoneit Model with Primary Key Type uuid
 
 If your user model has a uuid primary key type of uuid, use the `--whodoneit-id-type=uuid` install option:
 
 ```bash
-    mix whatwasit.install --whodoneit-id-type=uuid
+mix whatwasit.install --whodoneit-id-type=uuid
 ```
 
 This will create the correct association type in the migration file as well as the Version shema file.
