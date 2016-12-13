@@ -22,4 +22,22 @@ defmodule Whatwasit.Utils do
     |> hd
     |> to_string
   end
+
+  def diff(string1, string2) do
+    res = String.myers_difference(string1, string2)
+    # IO.inspect res
+    res |> Enum.reduce({"", ""}, fn
+      {:del, del}, {string1, string2} ->
+        {string1 <> wrap(del, :del), string2 }
+      {:ins, ins}, {string1, string2} ->
+        {string1, string2 <> wrap(ins, :ins)}
+      {:eq, eq}, {string1, string2} ->
+        {string1 <> eq, string2 <> eq}
+    end)
+  end
+
+  def wrap(string, class) do
+    tag = "span"
+    "<" <> tag <> " class='#{class}'>" <> string <> "</" <> tag <> ">"
+  end
 end

@@ -35,6 +35,11 @@ mix deps.get
 
 ## Getting Started
 
+There are two ways to use Whatwasit.
+
+1. [Track Changes Mode](#track-changes-mode) - Tracks each change/delete for given models
+1. [Model Auditing Mode](#model-auditing-mode) - Track insert/change/deletes for given models
+
 Run the install mix task:
 
 ```bash
@@ -55,6 +60,12 @@ Run the migration:
 ```bash
 mix ecto.migrate
 ```
+
+### Track Changes Mode
+
+This approached inserts a new `Version` record for each change. The state of the model before the change is recorded in the version entry.
+
+The Track Changes Mode is the least intrusive to setup for each model.
 
 Add whatwasit to each model you would like to track:
 
@@ -109,7 +120,7 @@ iex(2)> MyProject.Whatwasit.Version.versions post
   updated_at: "2016-07-22T01:49:25"}]
 ```
 
-## Tracking Deletes
+#### Tracking Deletes
 
 In order to track deletes you need to pass a changeset to `Repo.delete` or `Repo.delete!`.
 
@@ -131,7 +142,7 @@ defmodule MyProject.PostController do
 end
 ```
 
-## Tracking Who Made The Change
+#### Tracking Who Made The Change
 
 A few extra steps are required for tracking who made the change. The following example may be a little different based on the function you use to get the current user. The following example uses [Coherence](https://github.com/smpallen99/coherence) as the authentication package:
 
@@ -203,7 +214,7 @@ The name is tracked to handle the case of deleting a user who has made modificat
 
 The default is to use the `:name` field on the user. This can be changed by setting the `:name_field` in the configuration, or passing the `name_field: :field_name` option to `use Whatwasit.Schema`
 
-## Store the whodoneit in the Database
+#### Store the whodoneit in the Database
 
 The above example saves a reference to the current user in the database. You may instead want to store user data in the database. This would allow you to save user details at the time like current IP.
 
@@ -255,7 +266,7 @@ defmodule MyProject.PostController do
   end
 end
 ```
-## Whodoneit Model with Primary Key Type uuid
+#### Whodoneit Model with Primary Key Type uuid
 
 If your user model has a uuid primary key type of uuid, use the `--whodoneit-id-type=uuid` install option:
 
@@ -264,6 +275,89 @@ mix whatwasit.install --whodoneit-id-type=uuid
 ```
 
 This will create the correct association type in the migration file as well as the Version shema file.
+
+### Model Auditing Mode
+
+This mode tracks the full life cyle of a model, including inserts, updates, and deletes.
+
+The Model Auditing Mode differs from the Track Changes mode by inserting a version record with the inserted/modified/deleted model.
+
+Additionally, this mode requires more changes to your project since it requires updating the `create`, `update`, and `delete` actions in the controller for each model tracked.
+
+To setup the Model Auditing Mode, follow the instructions for [Track Changes Mode](#track-changes-mode), with the following differences:
+
+#### Model Changes
+
+No model setup is required.
+
+If you are migrating from a previous version of Whatwasit, you will need to remove the `prepare_changes` line from your model's `changeset` functions.
+
+#### Repo Changes
+
+Update your project's `Repo` module:
+
+```elixir
+# lib/whatwasit_demo/repo.ex
+defmodule WhatwasitDemo.Repo do
+  use Ecto.Repo, otp_app: :whatwasit_demo
+  use Whatwasit.Repo                        # add this
+end
+```
+
+#### Controller Changes
+
+Modify the `create`, `update`, and `delete` actions of your desired controllers using `Repo.insert_with_version/2`, `Repo.insert_with_version/2`, and `Repo.delete_with_version/2` calls.
+
+For example:
+
+```elixir
+# An example with whodoneit tracking
+defmodule WhatwasitDemo.PostController do
+  def create(conn, %{"post" => post_params}) do
+    changeset = Post.changeset(%Post{}, post_params)
+
+    case Repo.insert_with_version(changeset, whodoneit(conn)) do
+      {:ok, post} ->
+        conn
+        |> put_flash(:info, "Post created successfully.")
+        |> redirect(to: post_path(conn, :index))
+      {:error, changeset} ->
+        render(conn, "new.html", changeset: changeset)
+    end
+  end
+  def update(conn, %{"id" => id, "post" => post_params}) do
+    post = Repo.get!(Post, id)
+    changeset = Post.changeset(post, post_params)
+
+    case Repo.update_with_version(changeset, whodoneit(conn)) do
+      {:ok, post} ->
+        IO.puts "post: #{inspect post}"
+        conn
+        |> put_flash(:info, "Post updated successfully.")
+        |> redirect(to: post_path(conn, :show, post))
+      {:error, changeset} ->
+        IO.puts "error: #{inspect changeset}"
+        render(conn, "edit.html", post: post, changeset: changeset)
+    end
+  end
+  def delete(conn, %{"id" => id}) do
+    post = Repo.get!(Post, id)
+
+    Repo.delete_with_version(post, whodoneit(conn))
+
+    conn
+    |> put_flash(:info, "Post deleted successfully.")
+    |> redirect(to: post_path(conn, :index))
+  end
+
+  defp whodoneit(conn) do
+    user = Coherence.current_user(conn)
+    [whodoneit: user , whodoneit_name: user.name]
+  end
+end
+```
+
+If you don't require current_user tracking, use the `Repo.action_with_version/1` API
 
 ## License
 

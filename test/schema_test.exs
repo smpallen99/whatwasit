@@ -3,6 +3,7 @@ defmodule Whatwasit.Whatwasit.Version do
   import Ecto
   import Ecto.Changeset
   require Ecto.Query
+  require Logger
 
   @base Mix.Project.get |> Module.split |> Enum.reverse |> Enum.at(1)
   @version_module Module.concat([@base, Whatwasit, Version])
@@ -117,80 +118,223 @@ end
 defmodule TestWhatwasit.SchemaTest do
   use TestWhatwasit.ModelCase
   import TestWhatwasit.TestHelpers
-  alias TestWhatwasit.{Post}
+  alias TestWhatwasit.{Post, AuditedPost}
   alias Whatwasit.Whatwasit.Version
 
-  setup do
+  def setup_tracking(_) do
     user = insert_user
     post = insert_post
     {:ok, post: post, user: user}
   end
 
-  test "prepare_version update", %{post: post} do
-    title = post.title
-    {:ok, post} = Post.changeset(post, %{title: "new title"})
-    |> Repo.update
-    assert post.title == "new title"
-    [version] = Repo.all Version
-    assert version.object["title"] == title
-    assert version.object["body"] == post.body
-    assert version.item_id == post.id
-    assert version.item_type == "Post"
-    assert version.action == "update"
+  describe "track changes mode" do
+    setup [:setup_tracking]
+
+    test "prepare_version update", %{post: post} do
+      title = post.title
+      {:ok, post} = Post.changeset(post, %{title: "new title"})
+      |> Repo.update
+      assert post.title == "new title"
+      [version] = Repo.all Version
+      assert version.object["title"] == title
+      assert version.object["body"] == post.body
+      assert version.item_id == post.id
+      assert version.item_type == "Post"
+      assert version.action == "update"
+    end
+
+    test "prepare_version delete", %{post: post} do
+      title = post.title
+      body = post.body
+      {:ok, post} = Post.changeset(post, %{})
+      |> Repo.delete
+      [version] = Repo.all Version
+      assert version.object["title"] == title
+      assert version.object["body"] == body
+      assert version.item_id == post.id
+      assert version.item_type == "Post"
+      assert version.action == "delete"
+    end
+
+    test "prepare_version update with user", %{post: post, user: user} do
+      title = post.title
+      {:ok, _post} = Post.changeset(post, %{title: "new title"}, whodoneit: user, whodoneit_name: user.name)
+      |> Repo.update
+      [version] = Repo.all(Version) |> Repo.preload([:whodoneit])
+      assert version.object["title"] == title
+      assert version.whodoneit_name == user.name
+      assert version.whodoneit.id == user.id
+      assert version.action == "update"
+    end
+
+    test "prepare_version delete with user", %{post: post, user: user} do
+      title = post.title
+      _ = Post.changeset(post, %{}, whodoneit: user, whodoneit_name: user.name)
+      |> Repo.delete!
+      [version] = Repo.all(Version) |> Repo.preload([:whodoneit])
+      assert version.object["title"] == title
+      assert version.whodoneit_name == user.name
+      assert version.whodoneit.id == user.id
+      assert version.action == "delete"
+    end
+
+    test "versions", %{post: post1} do
+      title1 = post1.title
+      post2 = insert_post
+      title2 = post2.title
+
+      post1 = Post.changeset(post1, %{title: "one"})
+      |> Repo.update!
+      Post.changeset(post1, %{title: "two"})
+      |> Repo.update!
+      Post.changeset(post2, %{title: "three"})
+      |> Repo.update!
+
+      [v12, v11] = Version.versions post1
+      [v21] = Version.versions post2
+
+      assert v12.title == "one"
+      assert v11.title == title1
+      assert v21.title == title2
+    end
   end
 
-  test "prepare_version delete", %{post: post} do
-    title = post.title
-    body = post.body
-    {:ok, post} = Post.changeset(post, %{})
-    |> Repo.delete
-    [version] = Repo.all Version
-    assert version.object["title"] == title
-    assert version.object["body"] == body
-    assert version.item_id == post.id
-    assert version.item_type == "Post"
-    assert version.action == "delete"
+  def setup_audit_mode(_) do
+    {:ok, post} = AuditedPost.changeset(%AuditedPost{}, %{title: "title", body: "body"})
+    |> Repo.insert_with_version
+    {:ok, post: post}
   end
 
-  test "prepare_version update with user", %{post: post, user: user} do
-    title = post.title
-    {:ok, _post} = Post.changeset(post, %{title: "new title"}, whodoneit: user, whodoneit_name: user.name)
-    |> Repo.update
-    [version] = Repo.all(Version) |> Repo.preload([:whodoneit])
-    assert version.object["title"] == title
-    assert version.whodoneit_name == user.name
-    assert version.whodoneit.id == user.id
-    assert version.action == "update"
+  describe "Model Audit Mode" do
+    setup [:setup_audit_mode]
+    test "insert", %{post: post} do
+      post = Repo.get(AuditedPost, post.id)
+      assert post.title == "title"
+      assert post.body == "body"
+      [v1] = Version.versions post
+      assert v1.title == "title"
+      assert v1.body == "body"
+      [version] = Repo.all(Version)
+      assert version.action == "insert"
+    end
+
+    test "update", %{post: post} do
+      {:ok, post1} = AuditedPost.changeset(post, %{title: "title1", body: "body1"})
+      |> Repo.update_with_version
+      post = Repo.get(AuditedPost, post1.id)
+      assert post.title == "title1"
+      assert post.body == "body1"
+      [v2,v1] = Version.versions post
+      assert v1.title == "title"
+      assert v1.body == "body"
+      assert v2.title == "title1"
+      assert v2.body == "body1"
+      [v1,v2] = Repo.all(Version)
+      assert v1.action == "insert"
+      assert v2.action == "update"
+
+      {:ok, post} = AuditedPost.changeset(post, %{title: "title2", body: "body2"})
+      |> Repo.update_with_version
+      post = Repo.get(AuditedPost, post.id)
+      assert post.title == "title2"
+      assert post.body == "body2"
+      [v3, _v2, _v1] = Version.versions post
+      assert v3.title == "title2"
+      assert v3.body == "body2"
+      [v1,v2,v3] = Repo.all(Version)
+      assert v1.action == "insert"
+      assert v2.action == "update"
+      assert v3.action == "update"
+    end
+
+    test "delete", %{post: post} do
+      {:ok, post} = post
+      |> Repo.delete_with_version
+      refute Repo.get(AuditedPost, post.id)
+      [v1,v2] = Repo.all(Version)
+      assert v1.action == "insert"
+      assert v1.object["title"] == "title"
+      assert v1.object["body"] == "body"
+      assert v2.action == "delete"
+      assert v2.object["title"] == "title"
+      assert v2.object["body"] == "body"
+    end
   end
 
-  test "prepare_version delete with user", %{post: post, user: user} do
-    title = post.title
-    _ = Post.changeset(post, %{}, whodoneit: user, whodoneit_name: user.name)
-    |> Repo.delete!
-    [version] = Repo.all(Version) |> Repo.preload([:whodoneit])
-    assert version.object["title"] == title
-    assert version.whodoneit_name == user.name
-    assert version.whodoneit.id == user.id
-    assert version.action == "delete"
+  def setup_audit_mode_user(_) do
+    user = insert_user
+    {:ok, post} = AuditedPost.changeset(%AuditedPost{}, %{title: "title", body: "body"})
+    |> Repo.insert_with_version(whodoneit(user))
+    {:ok, post: post, user: user}
   end
 
-  test "versions", %{post: post1} do
-    title1 = post1.title
-    post2 = insert_post
-    title2 = post2.title
+  def whodoneit(user) do
+    [whodoneit: user , whodoneit_name: user.name]
+  end
 
-    post1 = Post.changeset(post1, %{title: "one"})
-    |> Repo.update!
-    Post.changeset(post1, %{title: "two"})
-    |> Repo.update!
-    Post.changeset(post2, %{title: "three"})
-    |> Repo.update!
+  describe "Model Audit Mode User" do
+    setup [:setup_audit_mode_user]
+    test "insert", %{post: post, user: user} do
+      post = Repo.get(AuditedPost, post.id)
+      assert post.title == "title"
+      assert post.body == "body"
+      [v1] = Version.versions post
+      assert v1.title == "title"
+      assert v1.body == "body"
+      [version] = Repo.all(Version) |> Repo.preload(:whodoneit)
+      assert version.action == "insert"
+      assert version.whodoneit == user
+    end
 
-    [v12, v11] = Version.versions post1
-    [v21] = Version.versions post2
+    test "update", %{post: post, user: user} do
+      user2 = insert_user
+      {:ok, post1} = AuditedPost.changeset(post, %{title: "title1", body: "body1"})
+      |> Repo.update_with_version(whodoneit(user))
+      post = Repo.get(AuditedPost, post1.id)
+      assert post.title == "title1"
+      assert post.body == "body1"
+      [v2,v1] = Version.versions post
+      assert v1.title == "title"
+      assert v1.body == "body"
+      assert v2.title == "title1"
+      assert v2.body == "body1"
+      [v1,v2] = Repo.all(Version) |> Repo.preload(:whodoneit)
+      assert v1.action == "insert"
+      assert v2.action == "update"
+      assert v1.whodoneit == user
+      assert v2.whodoneit == user
 
-    assert v12.title == "one"
-    assert v11.title == title1
-    assert v21.title == title2
+      {:ok, post} = AuditedPost.changeset(post, %{title: "title2", body: "body2"})
+      |> Repo.update_with_version(whodoneit(user2))
+      post = Repo.get(AuditedPost, post.id)
+      assert post.title == "title2"
+      assert post.body == "body2"
+      [v3, _v2, _v1] = Version.versions post
+      assert v3.title == "title2"
+      assert v3.body == "body2"
+      [v1,v2,v3] = Repo.all(Version) |> Repo.preload(:whodoneit)
+      assert v1.action == "insert"
+      assert v1.whodoneit == user
+      assert v2.action == "update"
+      assert v2.whodoneit == user
+      assert v3.action == "update"
+      assert v3.whodoneit == user2
+    end
+
+    test "delete", %{post: post, user: user} do
+      user2 = insert_user
+      {:ok, post} = post
+      |> Repo.delete_with_version(whodoneit(user2))
+      refute Repo.get(AuditedPost, post.id)
+      [v1,v2] = Repo.all(Version) |> Repo.preload(:whodoneit)
+      assert v1.action == "insert"
+      assert v1.object["title"] == "title"
+      assert v1.object["body"] == "body"
+      assert v1.whodoneit == user
+      assert v2.action == "delete"
+      assert v2.object["title"] == "title"
+      assert v2.object["body"] == "body"
+      assert v2.whodoneit == user2
+    end
   end
 end

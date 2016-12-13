@@ -49,3 +49,20 @@ defmodule TestWhatwasit.Post do
     |> Whatwasit.Whatwasit.Version.prepare_version(opts)
   end
 end
+
+defmodule TestWhatwasit.AuditedPost do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  schema "audited_posts" do
+    field :title, :string
+    field :body, :string
+    timestamps
+  end
+
+  def changeset(model, params \\ %{}) do
+    model
+    |> cast(params, ~w(title body))
+    |> validate_required(~w(title body)a)
+  end
+end

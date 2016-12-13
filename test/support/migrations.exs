@@ -34,5 +34,12 @@ defmodule TestWhatwasit.Migrations do
       timestamps
     end
 
+    create table(:audited_posts) do
+      add :title, :string
+      add :body, :text
+
+      timestamps
+    end
+
   end
 end
