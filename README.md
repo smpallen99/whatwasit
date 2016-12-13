@@ -157,7 +157,7 @@ Add an extra parameter to your model's changeset function and pass that to `prep
 ```elixir
 defmodule MyProject.Post do
   use MyProject.Web, :model
-  use Whatwasit.Schema
+  use Whatwasit
   # ...
   def changeset(model, params \\ %{}, opts \\ []) do
     model
