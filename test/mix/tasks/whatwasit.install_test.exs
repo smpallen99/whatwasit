@@ -2,7 +2,6 @@ Code.require_file "../../mix_helpers.exs", __DIR__
 
 defmodule Mix.Tasks.Whatwasit.InstallTest do
   use ExUnit.Case
-  alias Coherence.Config
   import MixHelper
 
   @model_path "web/models/whatwasit/version.ex"
